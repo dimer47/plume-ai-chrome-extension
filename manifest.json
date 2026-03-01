@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Plume AI – Assistant d'écriture IA",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Votre plume augmentée par l'IA. Générez et affinez du texte avec Claude ou OpenAI dans vos champs texte.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
   "host_permissions": [
     "https://api.anthropic.com/*",
     "https://api.openai.com/*"
@@ -23,9 +26,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],

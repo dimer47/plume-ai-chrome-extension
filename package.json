@@ -1,6 +1,6 @@
 {
   "name": "plume-ai-chrome-extension",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Plume AI – Assistant d'écriture IA pour Chrome",
   "private": true,
   "scripts": {
