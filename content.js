@@ -2,21 +2,16 @@
 // Detects text fields, shows trigger buttons, manages the generation modal
 
 (function () {
-  console.log('[Plume AI] Content script v1.2.0 loading…');
-
   // Check if a previous (possibly orphan) instance exists
   if (window.__aiwInjected && typeof chrome !== 'undefined' && chrome.runtime?.id) {
-    console.log('[Plume AI] Already injected, skipping.');
     return;
   }
   window.__aiwInjected = true;
 
   // Abort if extension context is invalidated (orphan content script)
   if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
-    console.warn('[Plume AI] Orphan script detected, aborting.');
     return;
   }
-  console.log('[Plume AI] Initialized OK, runtime ID:', chrome.runtime.id);
 
   // --- State ---
   let activeTarget = null; // The text field we're working with
@@ -26,7 +21,14 @@
   let overlay = null;
   let savedSelection = ''; // Selection captured before it's lost on click
   let hasInteracted = false; // Tracks if user has interacted with the modal
-  let ttsRate = parseFloat(localStorage.getItem('plume-tts-rate')) || 1;
+  let ttsRate = 1;
+
+  // Restore ttsRate from chrome.storage
+  if (chrome?.storage?.local) {
+    chrome.storage.local.get('plumeTtsRate', (r) => {
+      if (r.plumeTtsRate) ttsRate = parseFloat(r.plumeTtsRate) || 1;
+    });
+  }
 
   // --- Trigger Button Management ---
   const triggerBtn = document.createElement('button');
@@ -480,7 +482,7 @@
 
   // Update the rate display on all message action bars (shared global rate)
   function updateAllRateDisplays() {
-    localStorage.setItem('plume-tts-rate', ttsRate);
+    if (chrome?.storage?.local) chrome.storage.local.set({ plumeTtsRate: ttsRate });
     if (!overlay) return;
     const label = ttsRate.toFixed(2).replace(/\.?0+$/, '') + 'x';
     overlay.querySelectorAll('.aiw-tts-rate').forEach(el => {
@@ -488,16 +490,19 @@
     });
   }
 
-  // --- Session Management ---
-  const SESSIONS_KEY = 'plume-sessions';
+  // --- Session Management (chrome.storage.local) ---
+  const SESSIONS_KEY = 'plumeSessions';
 
-  function getSessions() {
-    try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; }
-    catch { return []; }
+  function getSessions(callback) {
+    if (!chrome?.storage?.local) { callback([]); return; }
+    chrome.storage.local.get(SESSIONS_KEY, (r) => {
+      callback(r[SESSIONS_KEY] || []);
+    });
   }
 
-  function saveSessions(sessions) {
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+  function saveSessions(sessions, callback) {
+    if (!chrome?.storage?.local) { if (callback) callback(); return; }
+    chrome.storage.local.set({ [SESSIONS_KEY]: sessions }, callback);
   }
 
   function saveCurrentSession() {
@@ -517,57 +522,63 @@
       history: [...conversationHistory],
       context: context
     };
-    const sessions = getSessions();
-    sessions.unshift(session);
-    if (sessions.length > 20) sessions.length = 20;
-    saveSessions(sessions);
-    showToast('Session sauvegardée');
-    renderSessionsList();
+    getSessions((sessions) => {
+      sessions.unshift(session);
+      if (sessions.length > 20) sessions.length = 20;
+      saveSessions(sessions, () => {
+        showToast('Session sauvegardée');
+        renderSessionsList();
+      });
+    });
   }
 
   function deleteSession(id) {
-    const sessions = getSessions().filter(s => s.id !== id);
-    saveSessions(sessions);
-    renderSessionsList();
+    getSessions((sessions) => {
+      saveSessions(sessions.filter(s => s.id !== id), () => {
+        renderSessionsList();
+      });
+    });
   }
 
   function restoreSession(id) {
-    const session = getSessions().find(s => s.id === id);
-    if (!session || !overlay) return;
+    getSessions((sessions) => {
+      const session = sessions.find(s => s.id === id);
+      if (!session || !overlay) return;
 
-    conversationHistory = [...session.history];
-    hasInteracted = true;
+      conversationHistory = [...session.history];
+      hasInteracted = true;
 
-    // Restore context
-    const contextTextarea = overlay.querySelector('#aiw-context');
-    const contextSection = overlay.querySelector('#aiw-context-section');
-    if (session.context) {
-      contextTextarea.value = session.context;
-      contextSection.classList.remove('collapsed');
-    }
-
-    // Rebuild chat UI
-    const chat = overlay.querySelector('#aiw-chat');
-    chat.innerHTML = '';
-    for (const msg of conversationHistory) {
-      if (msg.role === 'user') {
-        const div = document.createElement('div');
-        div.className = 'aiw-msg aiw-msg-user';
-        div.textContent = msg.content;
-        chat.appendChild(div);
-      } else {
-        const div = document.createElement('div');
-        div.className = 'aiw-msg aiw-msg-ai';
-        div.innerHTML = '<span class="aiw-msg-text"></span>';
-        div.querySelector('.aiw-msg-text').textContent = msg.content;
-        chat.appendChild(div);
-        addMessageActions(div);
+      // Restore context
+      const contextTextarea = overlay.querySelector('#aiw-context');
+      const contextSection = overlay.querySelector('#aiw-context-section');
+      if (session.context) {
+        contextTextarea.value = session.context;
+        contextSection.classList.remove('collapsed');
       }
-    }
-    lastGeneratedText = conversationHistory.filter(m => m.role === 'assistant').pop()?.content || '';
-    chat.scrollTop = chat.scrollHeight;
-    updateMessageCount();
-    overlay.querySelector('#aiw-input').focus();
+
+      // Rebuild chat UI
+      const chat = overlay.querySelector('#aiw-chat');
+      chat.innerHTML = '';
+      for (const msg of conversationHistory) {
+        if (msg.role === 'user') {
+          const div = document.createElement('div');
+          div.className = 'aiw-msg aiw-msg-user';
+          div.textContent = msg.content;
+          chat.appendChild(div);
+        } else {
+          const div = document.createElement('div');
+          div.className = 'aiw-msg aiw-msg-ai';
+          div.innerHTML = '<span class="aiw-msg-text"></span>';
+          div.querySelector('.aiw-msg-text').textContent = msg.content;
+          chat.appendChild(div);
+          addMessageActions(div);
+        }
+      }
+      lastGeneratedText = conversationHistory.filter(m => m.role === 'assistant').pop()?.content || '';
+      chat.scrollTop = chat.scrollHeight;
+      updateMessageCount();
+      overlay.querySelector('#aiw-input').focus();
+    });
   }
 
   function renderSessionsList() {
@@ -576,38 +587,40 @@
     // Only show sessions list when chat is empty (no conversation)
     if (conversationHistory.length > 0) return;
 
-    const sessions = getSessions();
-    chat.innerHTML = '';
-    if (sessions.length === 0) return;
+    getSessions((sessions) => {
+      if (!overlay || conversationHistory.length > 0) return;
+      chat.innerHTML = '';
+      if (sessions.length === 0) return;
 
-    const container = document.createElement('div');
-    container.className = 'aiw-sessions-list';
-    container.innerHTML =
-      '<div class="aiw-sessions-header">' +
-        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>' +
-        'Sessions récentes</div>';
+      const container = document.createElement('div');
+      container.className = 'aiw-sessions-list';
+      container.innerHTML =
+        '<div class="aiw-sessions-header">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>' +
+          'Sessions récentes</div>';
 
-    for (const s of sessions) {
-      const item = document.createElement('div');
-      item.className = 'aiw-session-item';
-      item.innerHTML =
-        '<div class="aiw-session-info">' +
-          '<span class="aiw-session-title">' + escapeHtml(s.title) + '</span>' +
-          '<span class="aiw-session-date">' + escapeHtml(s.date) + ' · ' + s.history.length + ' msg</span>' +
-        '</div>' +
-        '<button class="aiw-session-delete" title="Supprimer">' +
-          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-        '</button>';
+      for (const s of sessions) {
+        const item = document.createElement('div');
+        item.className = 'aiw-session-item';
+        item.innerHTML =
+          '<div class="aiw-session-info">' +
+            '<span class="aiw-session-title">' + escapeHtml(s.title) + '</span>' +
+            '<span class="aiw-session-date">' + escapeHtml(s.date) + ' · ' + s.history.length + ' msg</span>' +
+          '</div>' +
+          '<button class="aiw-session-delete" title="Supprimer">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+          '</button>';
 
-      item.querySelector('.aiw-session-info').addEventListener('click', () => restoreSession(s.id));
-      item.querySelector('.aiw-session-delete').addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteSession(s.id);
-      });
+        item.querySelector('.aiw-session-info').addEventListener('click', () => restoreSession(s.id));
+        item.querySelector('.aiw-session-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteSession(s.id);
+        });
 
-      container.appendChild(item);
-    }
-    chat.appendChild(container);
+        container.appendChild(item);
+      }
+      chat.appendChild(container);
+    });
   }
 
   function escapeHtml(str) {
@@ -788,8 +801,14 @@
         selection.addRange(range);
       }
 
-      // Convert newlines to <br> for HTML content
-      const htmlText = text.replace(/\n/g, '<br>');
+      // Escape HTML then convert newlines to <br> for safe insertion
+      const htmlText = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/\n/g, '<br>');
 
       // Use execCommand for undo-compatible insertion
       document.execCommand('insertHTML', false, htmlText);
