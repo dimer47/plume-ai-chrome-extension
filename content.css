@@ -462,6 +462,47 @@
 
 .aiw-input::placeholder { color: #52525b; }
 
+/* Microphone button */
+.aiw-mic-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #2e2e38;
+  background: #1c1c22;
+  color: #71717a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.aiw-mic-btn:hover {
+  background: #27272f;
+  color: #e4e4e7;
+  border-color: #3f3f4a;
+}
+
+.aiw-mic-btn.aiw-mic-recording {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  animation: aiw-mic-pulse 1.5s ease-in-out infinite;
+}
+
+.aiw-mic-btn.aiw-mic-transcribing {
+  background: rgba(109, 40, 217, 0.15);
+  border-color: rgba(109, 40, 217, 0.3);
+  color: #a78bfa;
+  animation: aiw-mic-pulse 1s ease-in-out infinite;
+}
+
+@keyframes aiw-mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .aiw-send-btn {
   width: 42px;
   height: 42px;

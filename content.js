@@ -149,6 +149,9 @@
         <div class="aiw-input-area">
           <div class="aiw-input-row">
             <textarea class="aiw-input" id="aiw-input" placeholder="Décrivez ce que vous voulez écrire... Ex: Écris un mail professionnel pour demander un congé le 15 mars" rows="1"></textarea>
+            <button class="aiw-mic-btn" id="aiw-mic" title="Dictée vocale (Whisper)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
             <button class="aiw-send-btn" id="aiw-send" title="Envoyer">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
@@ -235,6 +238,56 @@
 
     sendBtn.addEventListener('click', doGenerate);
 
+    // --- Microphone / Whisper dictation ---
+    const micBtn = overlay.querySelector('#aiw-mic');
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    micBtn.addEventListener('click', async () => {
+      if (isRecording) {
+        // Stop recording
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        return;
+      }
+
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        mediaRecorder.addEventListener('dataavailable', (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        });
+
+        mediaRecorder.addEventListener('stop', () => {
+          // Stop all tracks to release the microphone
+          stream.getTracks().forEach(t => t.stop());
+          isRecording = false;
+          micBtn.classList.remove('aiw-mic-recording');
+
+          if (audioChunks.length === 0) return;
+
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          transcribeAudio(audioBlob, input);
+        });
+
+        mediaRecorder.start();
+        isRecording = true;
+        micBtn.classList.add('aiw-mic-recording');
+
+      } catch (err) {
+        if (err.name === 'NotAllowedError') {
+          showToast('Accès au micro refusé');
+        } else {
+          showToast('Erreur micro : ' + err.message);
+        }
+      }
+    });
+
     // Close (cross button always works)
     overlay.querySelector('#aiw-close').addEventListener('click', closeModal);
 
@@ -291,6 +344,12 @@
     // Stop any ongoing TTS
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
+    }
+    // Stop any ongoing recording
+    const micBtn = overlay.querySelector('#aiw-mic');
+    if (micBtn && micBtn.classList.contains('aiw-mic-recording')) {
+      // The MediaRecorder stop will be handled by its own event listener
+      micBtn.click();
     }
     document.removeEventListener('keydown', overlay.__escHandler);
     overlay.classList.remove('open');
@@ -816,6 +875,56 @@
       // Trigger input event
       el.dispatchEvent(new Event('input', { bubbles: true }));
     }
+  }
+
+  // --- Whisper Transcription ---
+  function transcribeAudio(audioBlob, inputEl) {
+    if (!overlay) return;
+
+    // Show transcribing state
+    const micBtn = overlay.querySelector('#aiw-mic');
+    if (micBtn) micBtn.classList.add('aiw-mic-transcribing');
+
+    // Convert blob to base64 and send to background
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64data = reader.result.split(',')[1];
+
+      if (!chrome?.runtime?.sendMessage) {
+        showToast('Extension déconnectée');
+        if (micBtn) micBtn.classList.remove('aiw-mic-transcribing');
+        return;
+      }
+
+      chrome.runtime.sendMessage({
+        action: 'transcribe',
+        audioData: base64data,
+        mimeType: audioBlob.type
+      }, (response) => {
+        if (micBtn) micBtn.classList.remove('aiw-mic-transcribing');
+
+        if (chrome.runtime.lastError) {
+          showToast('Erreur de transcription');
+          return;
+        }
+
+        if (response && response.error) {
+          showToast(response.error);
+          return;
+        }
+
+        if (response && response.text) {
+          // Append transcribed text to input
+          const current = inputEl.value;
+          inputEl.value = current ? current + ' ' + response.text : response.text;
+          inputEl.style.height = 'auto';
+          inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+          inputEl.focus();
+          hasInteracted = true;
+        }
+      });
+    };
+    reader.readAsDataURL(audioBlob);
   }
 
   // --- Toast Notifications ---

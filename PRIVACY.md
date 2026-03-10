@@ -20,13 +20,19 @@ Ces données ne quittent jamais votre appareil et ne sont transmises à aucun se
 
 ### Données transmises aux API d'IA
 
+**Rédaction IA (Claude ou OpenAI) :**
+
 Lorsque vous utilisez l'extension pour générer du texte, les données suivantes sont envoyées à l'API d'IA que vous avez configurée (Anthropic ou OpenAI) :
 
 - Votre instruction (prompt) saisie dans la modale de l'extension.
 - Le contexte optionnel que vous avez choisi de fournir (texte existant dans le champ de saisie).
 - L'historique de la conversation en cours pour maintenir le contexte.
 
-Ces données sont transmises directement à l'API choisie conformément à leurs propres politiques de confidentialité :
+**Dictée vocale (OpenAI Whisper) :**
+
+Lorsque vous utilisez la fonctionnalité de dictée vocale, l'enregistrement audio est envoyé à l'API OpenAI Whisper pour transcription. L'audio n'est pas stocké localement ni sur aucun serveur — il est transmis uniquement pour la transcription en temps réel.
+
+Ces données sont transmises directement aux API choisies conformément à leurs propres politiques de confidentialité :
 - [Politique de confidentialité d'Anthropic](https://www.anthropic.com/privacy)
 - [Politique de confidentialité d'OpenAI](https://openai.com/privacy/)
 
@@ -61,8 +67,9 @@ L'extension n'utilise aucun code distant. Tout le code JavaScript et CSS est inc
 ## Autorisations
 
 - **storage** : sauvegarder vos préférences et sessions localement.
-- **Accès aux hôtes** (`api.anthropic.com`, `api.openai.com`) : envoyer les requêtes de génération de texte aux API d'IA.
+- **Accès aux hôtes** (`api.anthropic.com`, `api.openai.com`) : envoyer les requêtes de génération de texte et de transcription vocale aux API d'IA.
 - **Content script sur toutes les URLs** : afficher le bouton d'activation et insérer le texte généré dans n'importe quel champ de texte.
+- **Accès au microphone** (via `navigator.mediaDevices.getUserMedia`) : uniquement lorsque l'utilisateur clique sur le bouton de dictée vocale. La permission est demandée par le navigateur à chaque première utilisation.
 
 ## Contact
 

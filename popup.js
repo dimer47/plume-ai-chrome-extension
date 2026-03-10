@@ -32,8 +32,16 @@ document.querySelectorAll('.toggle-vis').forEach(btn => {
   });
 });
 
+// Sync whisper key with openai key (if whisper key is empty)
+$('#openai-key').addEventListener('input', () => {
+  const whisperInput = $('#whisper-key');
+  if (!whisperInput.value.trim()) {
+    whisperInput.value = $('#openai-key').value;
+  }
+});
+
 // Load saved settings
-chrome.storage.local.get(['provider', 'claudeKey', 'openaiKey', 'claudeModel', 'openaiModel', 'customInstructions'], (data) => {
+chrome.storage.local.get(['provider', 'claudeKey', 'openaiKey', 'claudeModel', 'openaiModel', 'customInstructions', 'whisperKey', 'whisperModel'], (data) => {
   if (data.provider) {
     currentProvider = data.provider;
     document.querySelectorAll('.provider-toggle button').forEach(b => {
@@ -45,6 +53,14 @@ chrome.storage.local.get(['provider', 'claudeKey', 'openaiKey', 'claudeModel', '
   if (data.claudeModel) $('#claude-model').value = data.claudeModel;
   if (data.openaiModel) $('#openai-model').value = data.openaiModel;
   if (data.customInstructions) $('#custom-instructions').value = data.customInstructions;
+
+  // Whisper key: use saved whisperKey, fallback to openaiKey
+  if (data.whisperKey) {
+    $('#whisper-key').value = data.whisperKey;
+  } else if (data.openaiKey) {
+    $('#whisper-key').value = data.openaiKey;
+  }
+  if (data.whisperModel) $('#whisper-model').value = data.whisperModel;
 
   // Always update visibility (fixes first-launch bug where model selector was hidden)
   updateFieldsVisibility();
@@ -58,10 +74,12 @@ $('#save-btn').addEventListener('click', () => {
     openaiKey: $('#openai-key').value.trim(),
     claudeModel: $('#claude-model').value,
     openaiModel: $('#openai-model').value,
-    customInstructions: $('#custom-instructions').value.trim()
+    customInstructions: $('#custom-instructions').value.trim(),
+    whisperKey: $('#whisper-key').value.trim(),
+    whisperModel: $('#whisper-model').value
   };
 
-  // Validation
+  // Validation: require the key for the selected LLM provider
   if (currentProvider === 'claude' && !data.claudeKey) {
     showStatus('Veuillez entrer votre clé API Anthropic', 'error');
     return;

@@ -203,6 +203,49 @@
 
     .models-section { display: none; }
     .models-section.visible { display: block; }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #a78bfa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+    }
+
+    .section-badge {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      letter-spacing: 0.3px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: #2e2e38;
+      margin: 18px 0;
+    }
+
+    .label-hint {
+      font-weight: 400;
+      color: #52525b;
+      font-size: 10px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .field-note {
+      font-size: 11px;
+      color: #52525b;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -219,9 +262,15 @@
   </div>
 
   <div class="content">
+    <!-- Section Rédaction (LLM) -->
+    <div class="section-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/></svg>
+      Rédaction IA
+    </div>
+
     <!-- Provider -->
     <div class="field">
-      <label>Fournisseur IA</label>
+      <label>Fournisseur LLM</label>
       <div class="provider-toggle">
         <button id="btn-claude" class="active" data-provider="claude">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
@@ -279,6 +328,35 @@
     <div class="field">
       <label>Instructions personnalisées (optionnel)</label>
       <input type="text" id="custom-instructions" placeholder="Ex: Réponds toujours en français, ton professionnel...">
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Section Dictée vocale (Whisper) -->
+    <div class="section-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Dictée vocale
+      <span class="section-badge">Whisper</span>
+    </div>
+
+    <div class="field">
+      <label>Clé API OpenAI <span class="label-hint">(requise pour la dictée vocale)</span></label>
+      <div class="key-input-wrap">
+        <input type="password" id="whisper-key" placeholder="sk-..." autocomplete="off">
+        <button class="toggle-vis" data-target="whisper-key">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <p class="field-note">Utilise la même clé que OpenAI LLM si renseignée ci-dessus.</p>
+    </div>
+
+    <div class="field">
+      <label>Modèle de transcription</label>
+      <select id="whisper-model">
+        <option value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe (rapide)</option>
+        <option value="gpt-4o-transcribe" selected>GPT-4o Transcribe (recommandé)</option>
+        <option value="whisper-1">Whisper-1 (classique)</option>
+      </select>
     </div>
 
     <button class="save-btn" id="save-btn">Sauvegarder</button>

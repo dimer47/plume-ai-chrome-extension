@@ -4,8 +4,17 @@
 // --- Settings handler (one-shot message) ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getSettings') {
-    chrome.storage.local.get(['provider', 'claudeKey', 'openaiKey', 'claudeModel', 'openaiModel', 'customInstructions'], (data) => {
+    chrome.storage.local.get(['provider', 'claudeKey', 'openaiKey', 'claudeModel', 'openaiModel', 'customInstructions', 'whisperKey'], (data) => {
       sendResponse(data);
+    });
+    return true;
+  }
+
+  if (request.action === 'transcribe') {
+    handleTranscription(request.audioData, request.mimeType).then(result => {
+      sendResponse(result);
+    }).catch(err => {
+      sendResponse({ error: err.message || 'Erreur de transcription' });
     });
     return true;
   }
@@ -207,4 +216,50 @@ async function streamOpenAI(port, apiKey, model, systemPrompt, userPrompt, histo
 
   // Ensure done is sent
   try { port.postMessage({ type: 'done', provider: 'openai' }); } catch (e) {}
+}
+
+// --- Whisper Transcription ---
+async function handleTranscription(base64Audio, mimeType) {
+  const settings = await new Promise(resolve => {
+    chrome.storage.local.get(['whisperKey', 'openaiKey', 'whisperModel'], resolve);
+  });
+
+  const apiKey = settings.whisperKey || settings.openaiKey;
+  if (!apiKey) {
+    throw new Error('Clé API OpenAI non configurée pour la dictée vocale. Configurez-la dans les paramètres de l\'extension.');
+  }
+
+  // Convert base64 to blob
+  const binaryString = atob(base64Audio);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const audioBlob = new Blob([bytes], { type: mimeType || 'audio/webm' });
+  const audioFile = new File([audioBlob], `audio.${ext}`, { type: mimeType || 'audio/webm' });
+
+  const model = settings.whisperModel || 'gpt-4o-transcribe';
+
+  const formData = new FormData();
+  formData.append('file', audioFile);
+  formData.append('model', model);
+  formData.append('language', 'fr');
+
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Erreur API Whisper (${response.status})`);
+  }
+
+  const result = await response.json();
+  return { text: result.text || '' };
 }
