@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Plume AI – Assistant d'écriture IA",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Votre plume augmentée par l'IA. Générez et affinez du texte avec Claude ou OpenAI dans vos champs texte.",
   "permissions": [
     "storage"
