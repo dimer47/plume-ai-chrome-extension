@@ -61,9 +61,8 @@ L'extension n'utilise aucun code distant. Tout le code JavaScript et CSS est inc
 ## Autorisations
 
 - **storage** : sauvegarder vos préférences et sessions localement.
-- **activeTab** : détecter le champ de texte actif et y insérer le texte généré.
 - **Accès aux hôtes** (`api.anthropic.com`, `api.openai.com`) : envoyer les requêtes de génération de texte aux API d'IA.
-- **Content script sur toutes les URLs** : afficher le bouton d'activation à côté de n'importe quel champ de texte.
+- **Content script sur toutes les URLs** : afficher le bouton d'activation et insérer le texte généré dans n'importe quel champ de texte.
 
 ## Contact
 
