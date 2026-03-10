@@ -22,6 +22,8 @@
   let savedSelection = ''; // Selection captured before it's lost on click
   let hasInteracted = false; // Tracks if user has interacted with the modal
   let ttsRate = 1;
+  let modalProvider = 'claude'; // Provider selected in the modal
+  let modalModel = ''; // Model selected in the modal
 
   // Restore ttsRate from chrome.storage
   if (chrome?.storage?.local) {
@@ -120,7 +122,16 @@
         <div class="aiw-modal-header">
           <div class="aiw-modal-header-left">
             <h2>✨ Plume AI</h2>
-            <span class="aiw-modal-badge" id="aiw-provider-badge">Claude</span>
+            <div class="aiw-provider-switcher" id="aiw-provider-switcher">
+              <button class="aiw-provider-current" id="aiw-provider-current">
+                <span class="aiw-provider-label" id="aiw-provider-label">Claude</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div class="aiw-provider-dropdown" id="aiw-provider-dropdown">
+                <button class="aiw-provider-option active" data-provider="claude" data-model="">Claude</button>
+                <button class="aiw-provider-option" data-provider="openai" data-model="">OpenAI</button>
+              </div>
+            </div>
           </div>
           <div class="aiw-modal-header-right">
             <button class="aiw-header-btn" id="aiw-save-session" title="Sauvegarder la session">
@@ -180,15 +191,84 @@
       overlay.classList.add('open');
     });
 
-    // Update provider badge
+    // --- Provider switcher ---
+    const providerLabel = overlay.querySelector('#aiw-provider-label');
+    const providerDropdown = overlay.querySelector('#aiw-provider-dropdown');
+    const providerCurrentBtn = overlay.querySelector('#aiw-provider-current');
+    const providerSwitcher = overlay.querySelector('#aiw-provider-switcher');
+
+    // Load settings and populate models in dropdown
     if (chrome?.runtime?.sendMessage) {
       chrome.runtime.sendMessage({ action: 'getSettings' }, (settings) => {
-        if (settings && overlay) {
-          const badge = overlay.querySelector('#aiw-provider-badge');
-          if (badge) badge.textContent = settings.provider === 'openai' ? 'OpenAI' : 'Claude';
+        if (!settings || !overlay) return;
+        modalProvider = settings.provider || 'claude';
+        modalModel = modalProvider === 'claude' ? (settings.claudeModel || '') : (settings.openaiModel || '');
+
+        // Build dropdown options with models
+        const claudeModels = [
+          { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+          { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+          { value: 'claude-opus-4-6', label: 'Opus 4.6' }
+        ];
+        const openaiModels = [
+          { value: 'gpt-4o', label: 'GPT-4o' },
+          { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+          { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' }
+        ];
+
+        let html = '<div class="aiw-provider-group-label">Claude</div>';
+        for (const m of claudeModels) {
+          const isActive = modalProvider === 'claude' && (settings.claudeModel || 'claude-sonnet-4-6') === m.value;
+          html += `<button class="aiw-provider-option${isActive ? ' active' : ''}" data-provider="claude" data-model="${m.value}">${m.label}</button>`;
         }
+        html += '<div class="aiw-provider-group-label">OpenAI</div>';
+        for (const m of openaiModels) {
+          const isActive = modalProvider === 'openai' && (settings.openaiModel || 'gpt-4o') === m.value;
+          html += `<button class="aiw-provider-option${isActive ? ' active' : ''}" data-provider="openai" data-model="${m.value}">${m.label}</button>`;
+        }
+        providerDropdown.innerHTML = html;
+
+        // Update label
+        updateProviderLabel();
+
+        // Bind click handlers on options
+        providerDropdown.querySelectorAll('.aiw-provider-option').forEach(opt => {
+          opt.addEventListener('click', (e) => {
+            e.stopPropagation();
+            modalProvider = opt.dataset.provider;
+            modalModel = opt.dataset.model;
+            providerDropdown.querySelectorAll('.aiw-provider-option').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            updateProviderLabel();
+            providerSwitcher.classList.remove('open');
+          });
+        });
       });
     }
+
+    function updateProviderLabel() {
+      if (!providerLabel) return;
+      const modelNames = {
+        'claude-sonnet-4-6': 'Sonnet 4.6',
+        'claude-haiku-4-5-20251001': 'Haiku 4.5',
+        'claude-opus-4-6': 'Opus 4.6',
+        'gpt-4o': 'GPT-4o',
+        'gpt-4o-mini': 'GPT-4o Mini',
+        'gpt-4-turbo': 'GPT-4 Turbo'
+      };
+      providerLabel.textContent = modelNames[modalModel] || (modalProvider === 'openai' ? 'OpenAI' : 'Claude');
+    }
+
+    // Toggle dropdown
+    providerCurrentBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      providerSwitcher.classList.toggle('open');
+    });
+
+    // Close dropdown on outside click
+    overlay.addEventListener('click', () => {
+      providerSwitcher.classList.remove('open');
+    });
 
     const input = overlay.querySelector('#aiw-input');
     const sendBtn = overlay.querySelector('#aiw-send');
@@ -796,7 +876,9 @@
       action: 'generate',
       prompt: prompt,
       context: context,
-      conversationHistory: conversationHistory
+      conversationHistory: conversationHistory,
+      provider: modalProvider,
+      model: modalModel
     });
   }
 

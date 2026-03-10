@@ -95,15 +95,99 @@
   letter-spacing: -0.2px;
 }
 
-.aiw-modal-badge {
-  font-size: 10px;
-  font-weight: 600;
+/* Provider switcher dropdown */
+.aiw-provider-switcher {
+  position: relative;
+}
+
+.aiw-provider-current {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 3px 8px;
   border-radius: 6px;
+  border: 1px solid rgba(109, 40, 217, 0.2);
   background: rgba(109, 40, 217, 0.15);
   color: #a78bfa;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.aiw-provider-current:hover {
+  background: rgba(109, 40, 217, 0.25);
+  border-color: rgba(109, 40, 217, 0.4);
+}
+
+.aiw-provider-switcher.open .aiw-provider-current {
+  background: rgba(109, 40, 217, 0.25);
+  border-color: rgba(109, 40, 217, 0.4);
+}
+
+.aiw-provider-switcher.open .aiw-provider-current svg {
+  transform: rotate(180deg);
+}
+
+.aiw-provider-current svg {
+  transition: transform 0.2s;
+  opacity: 0.6;
+}
+
+.aiw-provider-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 150px;
+  background: #1c1c22;
+  border: 1px solid #2e2e38;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 10;
+}
+
+.aiw-provider-switcher.open .aiw-provider-dropdown {
+  display: block;
+}
+
+.aiw-provider-group-label {
+  padding: 6px 10px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #52525b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.aiw-provider-option {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #a1a1aa;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.1s;
+}
+
+.aiw-provider-option:hover {
+  background: #27272f;
+  color: #e4e4e7;
+}
+
+.aiw-provider-option.active {
+  background: rgba(109, 40, 217, 0.15);
+  color: #a78bfa;
 }
 
 .aiw-modal-header-right {
